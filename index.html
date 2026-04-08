@@ -1,0 +1,1257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>X_ForgeMail | Pro Cosmos (Firebase Edition)</title>
+    
+    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/2092/2092663.png" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Mulish:wght@300;400;600;700;800&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/aos@2.3.1/dist/aos.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+
+    <style>
+        :root { --primary: #0d6efd; --dark: #0a0a0f; --light: #ffffff; --gold: #FFD700; --neon: #00eeff; }
+        
+        /* --- SCROLL OCULTO MAS FUNCIONAL --- */
+        ::-webkit-scrollbar { width: 0px; height: 0px; background: transparent; display: none; }
+        * { scrollbar-width: none; -ms-overflow-style: none; }
+
+        /* --- CONFIGURAÇÕES BASE --- */
+        html { min-height: 100dvh; background-color: #050505; overflow-x: hidden; margin: 0; padding: 0; }
+        body { font-family: 'Mulish', sans-serif; background-color: transparent !important; color: #333; min-height: 100dvh; overflow-x: hidden; margin: 0; padding: 0; position: relative; }
+        body.modal-open { overflow: hidden; overscroll-behavior: none; touch-action: none; }
+
+        /* --- FUNDO COSMOS (OTIMIZADO) --- */
+        #cosmos-horizon-wrapper { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -9999; overflow: hidden; pointer-events: none; background: radial-gradient(ellipse at bottom, #1B2735 0%, #050505 100%); transform: translateZ(0); -webkit-transform: translateZ(0); backface-visibility: hidden; will-change: transform; }
+        .cosmos-horizon-nebula { position: absolute; top: -10%; left: -10%; width: 120%; height: 120%; background-image: radial-gradient(circle at 20% 50%, rgba(0, 180, 255, 0.15), transparent 60%), radial-gradient(circle at 80% 30%, rgba(100, 50, 255, 0.1), transparent 60%); z-index: 1; animation: driftNebula 25s infinite alternate ease-in-out; will-change: transform; }
+        @keyframes driftNebula { from { transform: translate(0, 0); } to { transform: translate(-2%, -1%); } }
+        #cosmos-horizon-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; display: block; will-change: transform; }
+
+        /* --- LAYOUT GERAL --- */
+        .header { background: rgba(10, 10, 15, 0.6); backdrop-filter: blur(10px); padding-bottom: 80px; color: white; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .nav { padding: 20px 0; z-index: 10; position: relative; }
+        .logo { font-weight: 800; font-size: 1.5rem; color: white; text-decoration: none; display: flex; align-items: center; gap: 10px; font-family: 'Rajdhani', sans-serif; }
+        
+        .user-badge { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 5px 15px; border-radius: 50px; font-size: 0.9rem; cursor: pointer; transition: 0.3s; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+        .user-badge:hover { background: rgba(255,255,255,0.2); }
+        .user-badge.premium { border-color: var(--gold); color: var(--gold); background: rgba(255, 215, 0, 0.1); }
+        
+        .header-title { font-weight: 800; font-size: 2.5rem; margin-bottom: 15px; text-align: center; text-shadow: 0 0 20px rgba(13, 110, 253, 0.5); font-family: 'Rajdhani', sans-serif; }
+        .header-text { text-align: center; max-width: 700px; margin: 0 auto; color: #dcdcdc; }
+        
+        .mail-wrapper { max-width: 800px; margin: 40px auto 0; position: relative; z-index: 5; width: 100%; padding: 0 15px; }
+        .mail-selection { background: rgba(255, 255, 255, 0.95); padding: 20px; border-radius: 12px; box-shadow: 0 15px 40px rgba(0,0,0,0.3); display: flex; flex-direction: column; gap: 15px; backdrop-filter: blur(5px); }
+
+        /* --- VISUAL DO EMAIL GERADO --- */
+        .status-container { display: flex; justify-content: center; align-items: stretch; width: 100%; margin-bottom: 5px; }
+        .status-badge { display: none; background-color: #ffffff; color: #000000 !important; font-size: 1.3rem; font-weight: 800; text-align: center; padding: 12px 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border: 2px solid transparent; letter-spacing: 0.5px; font-family: 'Rajdhani', sans-serif; word-break: break-all; flex: 1; min-width: 0; }
+        .status-badge.active-gw { border-color: #0d6efd; }
+        .status-badge.active-tm { border-color: #198754; }
+        .status-badge.active-m7 { border-color: #6c5ce7; }
+        .status-badge.active-md { border-color: #20c997; color: #20c997 !important; } /* Cor Maildrop */
+        .status-badge.active-grr { border-color: #e67e22; color: #e67e22 !important; } 
+
+        .input-group-custom { display: flex; gap: 0; background: #fff; border: 1px solid #dee2e6; padding: 0; border-radius: 8px; overflow: hidden; width: 100%; }
+        .custom-user-input { border: none; background: transparent; padding: 12px 15px; font-weight: 700; color: #333; flex: 1; text-align: right; outline: none; min-width: 0; text-overflow: ellipsis; }
+        .custom-domain-select { border: none; background: #e9ecef; padding: 12px 15px; border-radius: 0; border-left: 1px solid #dee2e6; font-weight: 600; color: #495057; outline: none; cursor: pointer; max-width: 45%; text-overflow: ellipsis; }
+
+        .mail-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 10px; position: relative; }
+        .mail-action { border: 1px solid #ddd; border-radius: 6px; padding: 10px 20px; font-weight: 700; color: #555; background: white; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; white-space: nowrap; flex: 1 1 auto; }
+        .mail-action:hover { background: var(--primary); color: white; border-color: var(--primary); transform: translateY(-2px); }
+        .mail-action.active { background: #198754; color: white; border-color: #198754; }
+        
+        /* --- MODAIS PROFISSIONAIS --- */
+        .custom-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100dvh; background: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: center; backdrop-filter: blur(8px); overscroll-behavior: contain; }
+        .modal-box { background: #0d1014; border: 1px solid rgba(255,255,255,0.1); width: 90%; max-width: 450px; border-radius: 16px; overflow-y: auto; max-height: 90dvh; box-shadow: 0 0 50px rgba(0,0,0,0.8); animation: fadeIn 0.3s ease; overscroll-behavior: contain; display: flex; flex-direction: column; }
+        .modal-box.large { max-width: 600px; } 
+        .modal-header-custom { padding: 20px; background: rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center; color: white; }
+        .modal-body-custom { padding: 30px; color: #ccc; text-align: center; }
+        .modal-body-list { padding: 0; max-height: 60vh; overflow-y: auto; background: #15181e; } 
+        
+        .history-item { padding: 15px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; text-align: left; display: flex; flex-direction: column; gap: 5px; transition: 0.2s; }
+        .history-item:hover { background: rgba(255,255,255,0.05); border-left: 4px solid var(--primary); }
+        .history-item-email { font-weight: 700; color: #fff; font-size: 1.05rem; }
+        .history-item-date { font-size: 0.8rem; color: #aaa; }
+        .history-empty { padding: 40px 20px; text-align: center; color: #888; }
+        
+        .btn-full { width: 100%; padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; transition: 0.2s; }
+        .btn-neon { background: linear-gradient(135deg, #00cec9, #6c5ce7); color: white; }
+        .btn-gold { background: linear-gradient(135deg, #FFD700, #FFA500); color: black; }
+        .input-dark { width: 100%; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 6px; margin-bottom: 15px; outline: none; }
+        .input-dark:focus { border-color: var(--neon); }
+        
+        /* --- INBOX --- */
+        .mailbox-container { max-width: 900px; margin: -50px auto 0; position: relative; z-index: 6; padding: 0 15px; width: 100%; }
+        .mailbox { background: white; border-radius: 12px; box-shadow: 0 20px 50px rgba(0,0,0,0.2); overflow: hidden; min-height: 400px; display: flex; flex-direction: column; }
+        .mailbox-header { display: flex; background: #f1f3f4; padding: 15px 20px; border-bottom: 1px solid #e0e0e0; font-weight: 700; color: #5f6368; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.5px; }
+        .email-item { display: flex; align-items: center; padding: 15px 20px; border-bottom: 1px solid #f0f0f0; cursor: pointer; transition: 0.2s; flex-wrap: wrap; }
+        .email-item:hover { background-color: #f8faff; border-left: 4px solid var(--primary); }
+        .empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; text-align: center; height: 100%; }
+        
+        .mail-tag { font-size: 0.7rem; padding: 2px 8px; border-radius: 12px; font-weight: bold; margin-right: 8px; display: inline-block; margin-bottom: 3px; }
+        .tag-verify { background: #e8f5e9; color: #2e7d32; }
+        .tag-login { background: #e3f2fd; color: #1565c0; }
+        .tag-trusted { background: #fffae6; color: #856404; border: 1px solid #ffeeba; }
+        .tag-code { background: #fee2e2; color: #c81e1e; border: 1px solid #fca5a5; }
+        .tag-link { background: #e0e7ff; color: #1d4ed8; border: 1px solid #a5b4fc; }
+        .tag-other { background: #f3e5f5; color: #7b1fa2; }
+
+        /* --- SISTEMA DE TOAST --- */
+        #toast-container { position: fixed; top: 20px; right: 20px; bottom: auto !important; left: auto !important; transform: none !important; z-index: 999999; display: flex; flex-direction: column; gap: 10px; width: auto; pointer-events: none; }
+        .cyber-toast { background: rgba(13, 16, 20, 0.95); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); border-left: 4px solid var(--neon); color: #fff; padding: 15px 20px; border-radius: 8px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8); display: flex; align-items: center; gap: 15px; position: relative; overflow: hidden; pointer-events: auto; cursor: pointer; min-width: 250px; max-width: 350px; animation: toastEntry 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards; }
+        .cyber-toast.hide { animation: toastExit 0.3s ease forwards; }
+        .toast-icon { font-size: 1.4rem; }
+        .toast-content { flex: 1; font-family: 'Rajdhani', sans-serif; font-size: 1rem; font-weight: 600; letter-spacing: 0.5px; line-height: 1.2; }
+        .toast-progress { position: absolute; bottom: 0; left: 0; height: 3px; width: 100%; animation: progressShrink linear forwards; }
+        .toast-success { border-left-color: #00ff88; }
+        .toast-success .toast-icon { color: #00ff88; text-shadow: 0 0 10px rgba(0,255,136,0.5); }
+        .toast-success .toast-progress { background: #00ff88; box-shadow: 0 0 10px #00ff88; }
+        .toast-error { border-left-color: #ff3344; }
+        .toast-error .toast-icon { color: #ff3344; text-shadow: 0 0 10px rgba(255,51,68,0.5); }
+        .toast-error .toast-progress { background: #ff3344; box-shadow: 0 0 10px #ff3344; }
+        .toast-warning { border-left-color: #ffdd00; }
+        .toast-warning .toast-icon { color: #ffdd00; text-shadow: 0 0 10px rgba(255,221,0,0.5); }
+        .toast-warning .toast-progress { background: #ffdd00; box-shadow: 0 0 10px #ffdd00; }
+        .toast-info { border-left-color: #00eeff; }
+        .toast-info .toast-icon { color: #00eeff; text-shadow: 0 0 10px rgba(0,238,255,0.5); }
+        .toast-info .toast-progress { background: #00eeff; box-shadow: 0 0 10px #00eeff; }
+        
+        @keyframes toastEntry { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes toastExit { from { transform: translateX(0); opacity: 1; } to { transform: translateX(120%); opacity: 0; } }
+        @keyframes progressShrink { from { width: 100%; } to { width: 0%; } }
+        @media (max-width: 480px) { #toast-container { top: 15px; right: 15px; left: 15px; width: auto; align-items: flex-end; } .cyber-toast { min-width: 0; width: 100%; } }
+
+        /* --- VISUALIZADOR DE EMAIL --- */
+        #email-view-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100dvh; background: rgba(0,0,0,0.8); z-index: 9999; justify-content: center; align-items: center; backdrop-filter: blur(5px); overscroll-behavior: contain; }
+        .email-view-content { background: white; width: 95%; max-width: 800px; height: 85dvh; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; overscroll-behavior: contain; }
+        .email-body-frame { width: 100%; height: 100%; border: none; }
+        .smart-actions-bar { padding: 10px 15px; background: #eef2f7; display: none; gap: 10px; border-bottom: 1px solid #ddd; }
+        .smart-btn { font-size: 0.85rem; padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; border: none; display: flex; align-items: center; gap: 5px; }
+        .btn-smart-link { background: #0d6efd; color: white; }
+        .btn-smart-copy { background: #198754; color: white; }
+        
+        footer { background: rgba(255, 255, 255, 0.9); margin-top: 50px; text-align: center; padding: 20px; font-size: 0.8rem; color: #666; position: relative; z-index: 5; }
+
+        @media (max-width: 768px) {
+            .nav .container > div { flex-direction: column; gap: 15px; align-items: center; text-align: center; }
+            .logo { width: 100%; justify-content: center; margin-bottom: 5px; font-size: 1.2rem; }
+            .ms-auto { margin: 0 !important; width: 100%; display: flex; justify-content: center; }
+            .ms-auto a { display: block; width: auto; font-size: 0.9rem; padding: 8px 15px; }
+            #auth-area { width: 100%; display: flex; justify-content: center; }
+            #auth-area button, #auth-area .user-badge { width: auto; justify-content: center; font-size: 0.9rem; }
+            .header-title { font-size: 1.8rem; }
+            .header-text { font-size: 0.9rem; padding: 0 10px; }
+            .mail-selection { padding: 15px; }
+            
+            .status-container { flex-direction: column; gap: 8px; }
+            .status-badge { width: 100%; font-size: 1.1rem; padding: 10px; }
+
+            .input-group-custom { flex-direction: column; border-radius: 8px; border: none; gap: 5px; background: transparent;}
+            .custom-user-input { width: 100%; text-align: center; border-radius: 8px; border: 1px solid #dee2e6; background: white;}
+            .custom-domain-select { width: 100%; max-width: 100%; border-radius: 8px; border: 1px solid #dee2e6; text-align: center; background: white;}
+            .mail-actions { flex-direction: row; flex-wrap: wrap; gap: 8px; }
+            .mail-action { flex: 1 1 45%; padding: 12px 10px; font-size: 0.85rem; }
+
+            .mailbox-header { display: none; }
+            .email-item { flex-direction: column; align-items: flex-start; gap: 5px; padding: 12px 15px; }
+            .email-item > div { width: 100% !important; text-align: left !important; }
+            .email-item .time-col { font-size: 0.8rem; color: #888; margin-top: 5px; }
+            
+            .email-view-content { width: 100%; height: 100dvh; border-radius: 0; max-height: none; }
+            #view-body { -webkit-overflow-scrolling: touch; overflow-y: auto !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="cosmos-horizon-wrapper">
+        <div class="cosmos-horizon-nebula"></div>
+        <canvas id="cosmos-horizon-canvas"></canvas>
+    </div>
+    
+    <header class="header">
+        <nav class="nav">
+            <div class="container">
+                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                    <a href="#" class="logo">
+                        <i class="fa-solid fa-shield-halved text-primary"></i> X_FORGE <span style="font-weight:300; opacity:0.7">COSMOS</span>
+                    </a>
+                    <div class="ms-auto me-3">
+                        <a href="#" onclick="window.location.href='app.html'; return false;" class="btn btn-sm btn-primary rounded-pill px-4" style="font-weight: 700; box-shadow: 0 0 15px rgba(13, 110, 253, 0.4);">
+                            <i class="fa-solid fa-rocket"></i> Acessar X_Forge App
+                        </a>
+                    </div>
+                    <div id="auth-area">
+                        <button class="btn btn-outline-light btn-sm rounded-pill px-4" onclick="abrirLogin()">Login</button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <div class="header-wrapper">
+            <div class="container-fluid">
+                <h1 class="header-title">Professional Identity Architect</h1>
+                <p class="header-text">
+                    Create disposable emails powered by Quadruple API Engine.
+                </p>
+
+                <div class="mail-wrapper">
+                    <div class="mail-selection">
+                        
+                        <div class="status-container">
+                            <div id="status-msg" class="status-badge"></div>
+                        </div>
+
+                        <div class="input-group-custom">
+                            <input type="text" id="userInput" class="custom-user-input" placeholder="User" value="Loading...">
+                            <select id="domainSelect" class="custom-domain-select">
+                                <option>Loading domains...</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mail-actions">
+                            <button id="btn-create" class="mail-action active" onclick="iniciarCriacaoComRotacao(false)">
+                                <i class="fa-solid fa-check"></i> Create / Access
+                            </button>
+                            <button id="btn-random" class="mail-action" onclick="cliqueRandom()">
+                                <i class="fa-solid fa-dice"></i> Random
+                            </button>
+                            <button class="mail-action" onclick="copiarEmail()">
+                                <i class="far fa-clone"></i> Copy
+                            </button>
+                            
+                            <button class="mail-action" onclick="abrirHistory()">
+                                <i class="fa-solid fa-clock-rotate-left"></i> History
+                            </button>
+                            
+                            <button id="refresh" class="mail-action" onclick="forceRefresh()">
+                                <i class="fas fa-sync-alt"></i> Refresh
+                            </button>
+                            <button class="mail-action" onclick="abrirPremium()">
+                                <i class="fa-solid fa-crown" style="color: gold;"></i> Premium
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <section class="section pt-5">
+        <div class="container">
+            <div class="mailbox-container">
+                <div class="mailbox">
+                    <div class="mailbox-header">
+                        <div style="flex:1">Sender</div>
+                        <div style="flex:2">Subject</div>
+                        <div style="width:80px; text-align:right">Time</div>
+                    </div>
+                    <div id="mailbox-list" style="flex:1; background:white; overflow-y:auto; max-height: 600px;">
+                        <div class="empty" id="mailbox-empty">
+                            <i class="fa-regular fa-envelope-open" style="font-size:3rem; color:#ddd; margin-bottom:15px;"></i>
+                            <h5 style="color:#555">Inbox Empty</h5>
+                            <p class="text-muted small">Waiting for incoming emails...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        X_ForgeMail Cosmos © 2026 – Powered by Quadruple Engine & Firebase
+    </footer>
+
+    <div id="history-modal" class="custom-modal">
+        <div class="modal-box large">
+            <div class="modal-header-custom">
+                <h3 style="margin:0;"><i class="fa-solid fa-clock-rotate-left"></i> Identity History</h3>
+                <span style="cursor:pointer; font-size:1.5rem;" onclick="fecharModal('history-modal')">&times;</span>
+            </div>
+            <div class="modal-body-list" id="history-list-container">
+                </div>
+        </div>
+    </div>
+
+    <div id="login-modal" class="custom-modal">
+        <div class="modal-box">
+            <div class="modal-header-custom">
+                <h3 style="margin:0;">🔐 Login / Sign Up</h3>
+                <span style="cursor:pointer; font-size:1.5rem;" onclick="fecharModal('login-modal')">&times;</span>
+            </div>
+            <div class="modal-body-custom">
+                <p>Login to sync your history and access Premium features.</p>
+                <input type="email" id="login-email" class="input-dark" placeholder="Email">
+                <input type="password" id="login-pass" class="input-dark" placeholder="Password (min 6 chars)">
+                <button onclick="fazerLoginLocal()" class="btn-full btn-neon">Login / Register</button>
+                <div style="margin: 15px 0; color:#666;">- OR -</div>
+                <button onclick="fazerLoginGoogle()" class="btn-full" style="background:white; color:#333">
+                    <i class="fa-brands fa-google"></i> Sign in with Google
+                </button>
+                <p style="margin-top:15px; font-size:0.8rem; cursor:pointer; color:#888;" onclick="recuperarSenha()">Forgot Password?</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="logout-modal" class="custom-modal">
+        <div class="modal-box" style="border-color: #ff3344; max-width: 400px;">
+            <div class="modal-header-custom">
+                <h3 style="color: #ff3344; margin:0; font-size: 1.3rem;"><i class="fa-solid fa-right-from-bracket"></i> Sair da conta</h3>
+                <span style="cursor:pointer; font-size:1.5rem;" onclick="fecharModal('logout-modal')">&times;</span>
+            </div>
+            <div class="modal-body-custom">
+                <i class="fa-solid fa-triangle-exclamation" style="font-size:3.5rem; color:#ff3344; margin-bottom:20px; filter: drop-shadow(0 0 10px rgba(255,51,68,0.5));"></i>
+                <h4 style="color: white; margin-bottom: 10px;">Tem certeza que deseja sair?</h4>
+                <p style="font-size: 0.95rem; margin-bottom: 25px;">Sua sessão atual será encerrada e você precisará fazer login novamente.</p>
+                <div style="display: flex; gap: 15px; margin-top: 15px;">
+                    <button class="btn-full" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; margin-top: 0;" onclick="fecharModal('logout-modal')">CANCELAR</button>
+                    <button class="btn-full" style="background: linear-gradient(135deg, #ff3344, #cc0011); color: white; margin-top: 0; box-shadow: 0 0 15px rgba(255,51,68,0.4);" onclick="executarLogout()">SAIR</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="premium-modal" class="custom-modal">
+        <div class="modal-box" style="border-color: var(--gold);">
+            <div class="modal-header-custom">
+                <h3 style="color: var(--gold); margin:0;"><i class="fa-solid fa-crown"></i> Become Premium</h3>
+                <span style="cursor:pointer; font-size:1.5rem;" onclick="fecharModal('premium-modal')">&times;</span>
+            </div>
+            <div class="modal-body-custom">
+                <i class="fa-solid fa-gem" style="font-size:3rem; color:var(--gold); margin-bottom:15px;"></i>
+                <h4>Unlimited Access</h4>
+                <p>Save unlimited history, remove ads, and get priority support.</p>
+                <div style="background:rgba(255,215,0,0.1); padding:15px; border-radius:8px; border:1px solid var(--gold); margin:20px 0;">
+                    <strong style="color:var(--gold); font-size:1.2rem;">LIFETIME ACCESS</strong>
+                </div>
+                <button class="btn-full btn-gold" onclick="comprarPremium()"><i class="fa-solid fa-bolt"></i> BUY NOW</button>
+                <div style="margin-top:20px; text-align:left;">
+                    <small style="color:#aaa;">Have a code?</small>
+                    <div style="display:flex; gap:10px;">
+                        <input type="text" id="vip-code" class="input-dark" style="margin:0;" placeholder="VIP KEY">
+                        <button onclick="ativarCodigoVIP()" style="background:var(--gold); border:none; border-radius:4px; font-weight:bold; cursor:pointer;">OK</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="email-view-modal">
+        <div class="email-view-content">
+            <div style="padding:15px; border-bottom:1px solid #ddd; display:flex; justify-content:space-between; align-items:center; background:#f8f9fa;">
+                <h5 id="view-subject" style="margin:0; width:80%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Subject</h5>
+                <button onclick="fecharModal('email-view-modal')" class="btn btn-sm btn-danger">&times;</button>
+            </div>
+            <div id="smart-actions" class="smart-actions-bar"></div>
+            <div id="view-body" style="padding:0; overflow-y:hidden; flex:1; background: #fff;">
+                <iframe id="view-iframe" class="email-body-frame" sandbox="allow-same-origin allow-popups"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script>
+        // ==========================================
+        // 1. OTIMIZAÇÃO DO FUNDO COSMOS
+        // ==========================================
+        (function () {
+            if (window.__COSMOS_HORIZON__) return;
+            window.__COSMOS_HORIZON__ = true;
+            const canvas = document.getElementById("cosmos-horizon-canvas");
+            const ctx = canvas.getContext("2d");
+            let w, h, entities = [], lastWidth = 0, isAnimating = true;
+
+            document.addEventListener("visibilitychange", () => {
+                isAnimating = !document.hidden;
+                if(isAnimating) requestAnimationFrame(animate);
+            });
+
+            let mouseX = window.innerWidth / 2;
+            let mouseY = window.innerHeight / 2;
+            const handleMouse = e => { mouseX = e.clientX || (e.touches && e.touches[0].clientX) || mouseX; mouseY = e.clientY || (e.touches && e.touches[0].clientY) || mouseY; };
+            window.addEventListener("mousemove", handleMouse, {passive:true});
+            window.addEventListener("touchmove", handleMouse, {passive:true});
+
+            function resize() {
+                const currentW = window.innerWidth;
+                if (Math.abs(currentW - lastWidth) > 50) { w = canvas.width = currentW; h = canvas.height = window.innerHeight; lastWidth = currentW; init(); }
+            }
+            class Star {
+                constructor(isWarp = false) { this.isWarp = isWarp; this.reset(true); }
+                reset(initial = false) { this.x = initial ? Math.random() * w : w + 50; this.y = Math.random() * h; this.z = Math.random() * 2 + 0.5; this.size = Math.random() * (this.isWarp ? 1.8 : 1.2); this.opacity = Math.random() * 0.7 + 0.3; this.speed = (Math.random() * 0.4 + 0.1) * (this.isWarp ? 5 : 1); }
+                update() {
+                    const tx = (mouseX / window.innerWidth - 0.5) * 10, ty = (mouseY / window.innerHeight - 0.5) * 10;
+                    this.x -= this.speed * this.z - tx * 0.2; this.y -= ty * 0.2;
+                    if (this.x < -100 || this.y < -100 || this.y > h + 100) this.reset();
+                }
+                draw() {
+                    ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`;
+                    const x = Math.floor(this.x), y = Math.floor(this.y);
+                    this.isWarp ? ctx.fillRect(x, y, this.size * 8, this.size) : ctx.fillRect(x, y, this.size * 2, this.size * 2);
+                }
+            }
+            class SpaceEntity {
+                constructor(type) { this.type = type; this.reset(true); }
+                reset(initial = false) { this.x = initial ? Math.random() * w : w + 300; this.y = Math.random() * (h * 0.8) + (h * 0.1); this.speed = Math.random() * 0.2 + 0.1; this.angle = 0; }
+                update() { this.x -= this.speed; this.angle += 0.02; if (this.x < -300) this.reset(); }
+                draw() {
+                    ctx.save(); ctx.translate(Math.floor(this.x), Math.floor(this.y));
+                    if(this.type === 'portal') {
+                        ctx.fillStyle = "rgba(0, 238, 255, 0.3)"; ctx.beginPath(); ctx.arc(0, 0, 15 + Math.sin(this.angle) * 3, 0, Math.PI*2); ctx.fill();
+                    } else { ctx.fillStyle = this.type === 'grey' ? "#bdc3c7" : "#2c3e50"; ctx.fillRect(-5, -2, 10, 4); }
+                    ctx.restore();
+                }
+            }
+            function init() {
+                entities = [];
+                const starCount = w < 768 ? 10 : 25;
+                for (let i = 0; i < starCount; i++) entities.push(new Star(i % 5 === 0));
+                ['portal', 'grey'].forEach(type => entities.push(new SpaceEntity(type)));
+            }
+            function animate() {
+                if (!isAnimating) return; 
+                ctx.clearRect(0, 0, w, h);
+                for(let i=0; i<entities.length; i++) { entities[i].update(); entities[i].draw(); }
+                requestAnimationFrame(animate);
+            }
+            window.addEventListener("resize", () => requestAnimationFrame(resize));
+            setTimeout(() => { lastWidth = 0; resize(); }, 100);
+            animate();
+        })();
+
+        // ==========================================
+        // 2. HELPERS DE UI (SCROLL, TOAST)
+        // ==========================================
+        let posScrollOriginal = 0;
+        function travarScroll() { if (document.body.classList.contains('modal-open')) return; posScrollOriginal = window.scrollY; document.body.style.position = 'fixed'; document.body.style.top = `-${posScrollOriginal}px`; document.body.style.width = '100%'; document.body.classList.add('modal-open'); }
+        function liberarScroll() { document.body.style.position = ''; document.body.style.top = ''; document.body.style.width = ''; document.body.classList.remove('modal-open'); window.scrollTo(0, posScrollOriginal); }
+        function fecharModal(id) { document.getElementById(id).style.display = 'none'; liberarScroll(); }
+
+        function showToast(msg, type = "info", duration = 3500) {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+            const existingToasts = container.querySelectorAll('.cyber-toast');
+            for (let t of existingToasts) if (t.dataset.message === msg) t.remove(); 
+            if (container.children.length >= 3) container.firstElementChild.remove();
+
+            const types = { 'success': { icon: 'fa-circle-check', css: 'toast-success' }, 'error': { icon: 'fa-circle-xmark', css: 'toast-error' }, 'warning': { icon: 'fa-triangle-exclamation', css: 'toast-warning' }, 'info': { icon: 'fa-circle-info', css: 'toast-info' } };
+            const config = types[type] || types['info'];
+            const toast = document.createElement('div');
+            toast.className = `cyber-toast ${config.css}`; toast.dataset.message = msg; 
+            toast.innerHTML = `<i class="fa-solid ${config.icon} toast-icon"></i><div class="toast-content">${msg}</div><div class="toast-progress" style="animation-duration: ${duration}ms;"></div>`;
+            toast.onclick = () => { if (toast.classList.contains('hide')) return; toast.classList.add('hide'); setTimeout(() => toast.remove(), 300); };
+            container.appendChild(toast);
+            setTimeout(() => { if (toast.parentElement && !toast.classList.contains('hide')) { toast.classList.add('hide'); setTimeout(() => { if (toast.parentElement) toast.remove(); }, 300); } }, duration);
+        }
+
+        const debounce = (func, delay) => { let timer; return (...args) => { clearTimeout(timer); timer = setTimeout(() => func(...args), delay); }; };
+
+        // ==========================================
+        // 3. CRIPTOGRAFIA LOCAL
+        // ==========================================
+        function encryptTokenLocal(text) {
+            if(!text) return "";
+            try { return btoa(text).split('').reverse().join(''); } catch(e) { return text; }
+        }
+        function decryptTokenLocal(encoded) {
+            if(!encoded) return "";
+            try { 
+                let rev = encoded.split('').reverse().join('');
+                let dec = atob(rev);
+                return (dec.length > 10) ? dec : encoded; 
+            } catch(e) { return encoded; } 
+        }
+
+        // ==========================================
+        // 4. FIREBASE AUTH E LÓGICA DE LOGIN
+        // ==========================================
+        const firebaseConfig = { apiKey: "AIzaSyCK5Vdb74ewjyNUxie6-mOK0nVAk4Rijcc", authDomain: "xforgemail.firebaseapp.com", projectId: "xforgemail", storageBucket: "xforgemail.firebasestorage.app", messagingSenderId: "497873192010", appId: "1:497873192010:web:4412cd2eafbd49378212b3" };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth(); const db = firebase.firestore();
+        let currentUser = null, isPremium = false;
+
+        auth.onAuthStateChanged((user) => {
+            currentUser = user;
+            if (user) { db.collection("users").doc(user.uid).get().then((doc) => { if (doc.exists && doc.data().isPremium) { isPremium = true; } atualizarUIAuth(); }); } 
+            else { isPremium = false; atualizarUIAuth(); }
+        });
+
+        function atualizarUIAuth() {
+            const area = document.getElementById('auth-area');
+            if (currentUser) {
+                let nome = currentUser.email.split('@')[0], badgeClass = isPremium ? "user-badge premium" : "user-badge", icon = isPremium ? '<i class="fa-solid fa-crown"></i>' : '<i class="fa-solid fa-user"></i>';
+                area.innerHTML = `<div class="${badgeClass}" onclick="fazerLogoutConfirm()">${icon} <span>${nome}</span> <i class="fa-solid fa-sign-out-alt" style="margin-left:5px; opacity:0.5;"></i></div>`;
+            } else { area.innerHTML = `<button class="btn btn-outline-light btn-sm rounded-pill px-4" onclick="abrirLogin()">Login</button>`; }
+        }
+
+        function abrirLogin() { travarScroll(); document.getElementById('login-modal').style.display = 'flex'; }
+        
+        function fazerLoginLocal() {
+            const email = document.getElementById('login-email').value;
+            const pass = document.getElementById('login-pass').value;
+            if(!email || !pass) return showToast("Preencha todos os campos", "warning");
+            
+            auth.signInWithEmailAndPassword(email, pass).then(() => {
+                fecharModal('login-modal');
+                showToast("Login realizado com sucesso!", "success");
+            }).catch(err => {
+                if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+                    auth.createUserWithEmailAndPassword(email, pass).then((creds) => {  
+                        db.collection("users").doc(creds.user.uid).set({ email: email, isPremium: false }); 
+                        fecharModal('login-modal'); 
+                        showToast("Conta criada com sucesso!", "success");
+                    }).catch(createErr => showToast("Erro ao criar conta: " + createErr.message, "error"));
+                } else {
+                    showToast("Erro: " + err.message, "error");
+                }
+            });
+        }
+
+        function fazerLoginGoogle() {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider).then((res) => {
+                db.collection("users").doc(res.user.uid).set({ email: res.user.email }, { merge: true });
+                fecharModal('login-modal');
+                showToast("Login com Google realizado!", "success");
+            }).catch(e => showToast("Erro Google: " + e.message, "error"));
+        }
+
+        function recuperarSenha() {
+            const email = document.getElementById('login-email').value;
+            if(!email) return showToast("Digite seu email no campo acima", "warning");
+            auth.sendPasswordResetEmail(email)
+                .then(() => showToast("Email de recuperação enviado!", "success"))
+                .catch(e => showToast("Erro: " + e.message, "error"));
+        }
+
+        function fazerLogoutConfirm() { travarScroll(); document.getElementById('logout-modal').style.display = 'flex'; }
+        function executarLogout() { auth.signOut(); fecharModal('logout-modal'); showToast("Desconectado com sucesso.", "success"); }
+        function abrirPremium() { travarScroll(); document.getElementById('premium-modal').style.display = 'flex'; }
+        
+        async function ativarCodigoVIP() {
+            if(!currentUser) return showToast("Faça login primeiro!", "warning");
+            const code = document.getElementById('vip-code').value.trim();
+            if(code === 'VIP2026' || code === 'ADMIN') {  
+                db.collection("users").doc(currentUser.uid).update({ isPremium: true }).then(() => { 
+                    isPremium = true; atualizarUIAuth(); fecharModal('premium-modal'); 
+                    showToast("👑 PREMIUM ATIVADO COM SUCESSO!", "success"); 
+                }).catch(e => showToast("Erro ao ativar: " + e.message, "error"));
+            } else { showToast("Código inválido.", "error"); }
+        }
+
+        function comprarPremium() { showToast("Redirecionando para pagamento..."); setTimeout(() => window.open('https://buy.stripe.com/test_premium', '_blank'), 1000); }
+
+        // ==========================================
+        // 5. ENGINE QUÁDRUPLO OFICIAL (GW, TM, M7, MAILDROP GraphQL)
+        // ==========================================
+        const API_GW = "https://api.mail.gw"; 
+        const API_TM = "https://api.mail.tm";
+        const API_M7 = "MAIL7"; 
+        const API_MAILDROP = "MAILDROP"; // INTEGRAÇÃO MAILDROP GRAPHQL
+        const API_GUERRILLA = "https://api.guerrillamail.com/ajax.php";
+        
+        let activeToken = "", activeAccountId = "", currentApiBase = API_GW; 
+        
+        let localAccountsHistory = JSON.parse(localStorage.getItem("xforge_history_v2")) || [];
+        let domainStats = JSON.parse(localStorage.getItem("xforge_domain_stats")) || {};
+
+        function atualizarStatsDominio(domain, isSuccess) {
+            if(!domainStats[domain]) domainStats[domain] = { success: 0, fail: 0 };
+            if(isSuccess) domainStats[domain].success++; else domainStats[domain].fail++;
+            localStorage.setItem("xforge_domain_stats", JSON.stringify(domainStats));
+        }
+
+        const spamKeywords = ["spam", "trash", "temp", "fake", "ru", "test"];
+        function isValidDomain(domain) { return !spamKeywords.some(keyword => domain.toLowerCase().includes(keyword)); }
+        const delay = ms => new Promise(res => setTimeout(res, ms));
+
+        async function fetchWithRetry(url, options = {}, retries = 3, backoff = 500) {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (response.status === 429) { await delay(backoff * 2); continue; }
+                    if (!response.ok && response.status >= 500) throw new Error("Server Error");
+                    return response;
+                } catch (err) { if (i === retries - 1) throw err; await delay(backoff); }
+            }
+        }
+
+        function atualizarStatusAPI(email, api) {
+            const statusMsg = document.getElementById('status-msg');
+            statusMsg.style.display = 'block'; statusMsg.innerText = email;
+            if (api === API_GW) statusMsg.className = "status-badge active-gw";
+            else if (api === API_TM) statusMsg.className = "status-badge active-tm";
+            else if (api === API_M7) statusMsg.className = "status-badge active-m7";
+            else if (api === API_MAILDROP) { 
+                statusMsg.className = "status-badge active-md"; 
+            }
+            else if (api === API_GUERRILLA) {
+                statusMsg.className = "status-badge active-grr";
+            }
+        }
+
+        async function buscarTodosDominios(apiBase, prefixoLabel) {
+            let dominiosEncontrados = [];
+            let pagina = 1;
+            let temMaisPaginas = true;
+
+            while (temMaisPaginas) {
+                try {
+                    const res = await fetch(`${apiBase}/domains?page=${pagina}`);
+                    if (!res.ok) break; 
+                    
+                    const data = await res.json();
+                    const dominiosDaPagina = data['hydra:member'] || [];
+                    
+                    const ativos = dominiosDaPagina.filter(d => d.isActive && isValidDomain(d.domain));
+                    
+                    ativos.forEach(d => {
+                        dominiosEncontrados.push({ domain: d.domain, api: apiBase, label: prefixoLabel });
+                    });
+
+                    if (data['hydra:view'] && data['hydra:view']['hydra:next']) {
+                        pagina++; 
+                    } else {
+                        temMaisPaginas = false; 
+                    }
+                } catch (error) {
+                    console.warn(`Erro ao buscar página ${pagina} de ${apiBase}`, error);
+                    temMaisPaginas = false;
+                }
+            }
+            return dominiosEncontrados;
+        }
+
+        async function carregarDominios() {
+            try {
+                const select = document.getElementById('domainSelect');
+                select.innerHTML = "<option>Loading network...</option>";
+                
+                let domainsPool = [];
+
+                const [dominiosGW, dominiosTM] = await Promise.all([
+                    buscarTodosDominios(API_GW, 'GW'),
+                    buscarTodosDominios(API_TM, 'TM')
+                ]);
+
+                domainsPool = [...dominiosGW, ...dominiosTM];
+
+                domainsPool.push({ domain: "mail7.app", api: API_M7, label: "M7" });
+                
+                // INTEGRAÇÃO OFICIAL MAILDROP E GUERRILLA MAIL
+                domainsPool.push({ domain: "maildrop.cc", api: API_MAILDROP, label: "MD" });
+                domainsPool.push({ domain: "sharklasers.com", api: API_GUERRILLA, label: "GRR" });
+                domainsPool.push({ domain: "grr.la", api: API_GUERRILLA, label: "GRR" });
+
+                if(domainsPool.length === 0) { 
+                    select.innerHTML = "<option>Network Error</option>"; 
+                    return showToast("As APIs de e-mail estão offline no momento.", "error"); 
+                }
+
+                domainsPool.sort((a, b) => {
+                    let sa = (domainStats[a.domain]?.success || 0) - (domainStats[a.domain]?.fail || 0);
+                    let sb = (domainStats[b.domain]?.success || 0) - (domainStats[b.domain]?.fail || 0);
+                    return sb - sa;
+                });
+
+                select.innerHTML = ""; 
+                
+                domainsPool.forEach(d => {
+                    const opt = document.createElement('option');
+                    opt.value = d.domain; 
+                    opt.text = `@${d.domain} (${d.label})`; 
+                    opt.dataset.api = d.api;
+                    select.appendChild(opt);
+                });
+
+                gerarNovoNome(false);
+                
+                const cachedToken = decryptTokenLocal(localStorage.getItem('xforge_active_token_enc'));
+                const cachedApi = localStorage.getItem('xforge_active_api');
+                const cachedEmail = localStorage.getItem('xforge_active_email');
+                
+                if (cachedToken && cachedApi && cachedEmail) {
+                    activeToken = cachedToken; currentApiBase = cachedApi;
+                    const parts = cachedEmail.split("@"); document.getElementById('userInput').value = parts[0];
+                    const match = Array.from(select.options).find(o => o.value === parts[1]); 
+                    if (match) { select.value = match.value; }
+                    
+                    atualizarStatusAPI(cachedEmail, currentApiBase);
+                    iniciarAutoRefresh(); buscarEmails();
+                    showToast("Sessão restaurada com sucesso!", "success");
+                } else {
+                    setTimeout(() => iniciarCriacaoComRotacao(false), 500);
+                }
+            } catch(e) { console.error("Erro Fatal no Quadruple Engine:", e); }
+        }
+
+        function abrirHistory() {
+            travarScroll();
+            document.getElementById('history-modal').style.display = 'flex';
+            renderHistoryList();
+        }
+
+        function renderHistoryList() {
+            const container = document.getElementById('history-list-container');
+            if(!localAccountsHistory.length) { 
+                container.innerHTML = '<div class="history-empty"><i class="fa-solid fa-ghost" style="font-size: 2.5rem; margin-bottom: 10px; opacity: 0.5;"></i><br>No historical data found.</div>'; 
+                return; 
+            }
+            container.innerHTML = "";
+            
+            const recent = localAccountsHistory.slice(-20).reverse(); 
+            recent.forEach((item) => {
+                const div = document.createElement('div');
+                div.className = 'history-item';
+                div.onclick = () => restoreHistoryItem(item);
+                const d = new Date(item.date).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+                
+                let apiLabel = 'M7';
+                if(item.api === API_GW) apiLabel = 'GW';
+                else if(item.api === API_TM) apiLabel = 'TM';
+                else if(item.api === API_MAILDROP) apiLabel = 'MD';
+                else if(item.api === API_GUERRILLA) apiLabel = 'GRR';
+
+                div.innerHTML = `<div class="history-item-email">${item.email}</div><div class="history-item-date"><i class="fa-solid fa-clock"></i> ${d} - API: ${apiLabel}</div>`;
+                container.appendChild(div);
+            });
+        }
+
+        function restoreHistoryItem(item) {
+            fecharModal('history-modal'); 
+            resetConnection();
+            activeToken = decryptTokenLocal(item.encToken);
+            currentApiBase = item.api;
+            const parts = item.email.split("@");
+            document.getElementById('userInput').value = parts[0];
+            
+            const select = document.getElementById('domainSelect');
+            const match = Array.from(select.options).find(o => o.value === parts[1]);
+            if(match) select.value = match.value;
+
+            localStorage.setItem('xforge_active_token_enc', item.encToken);
+            localStorage.setItem('xforge_active_api', item.api);
+            localStorage.setItem('xforge_active_email', item.email);
+
+            atualizarStatusAPI(item.email, currentApiBase);
+            document.getElementById('btn-create').innerHTML = '<i class="fa-solid fa-check"></i> Connected';
+            document.getElementById('btn-create').classList.add('active');
+            
+            showToast("Identidade restaurada!", "success");
+            iniciarAutoRefresh(); buscarEmails(); 
+        }
+
+        function salvarNoHistorico(email, token, api) {
+            const encToken = encryptTokenLocal(token);
+            localAccountsHistory = localAccountsHistory.filter(h => h.email !== email);
+            localAccountsHistory.push({ email, encToken, api, date: new Date().toISOString() });
+            if(localAccountsHistory.length > 25) localAccountsHistory.shift(); 
+            localStorage.setItem('xforge_history_v2', JSON.stringify(localAccountsHistory));
+        }
+
+        function cliqueRandom() {
+            const btnRandom = document.getElementById('btn-random');
+            btnRandom.disabled = true; btnRandom.style.pointerEvents = 'none'; btnRandom.style.opacity = '0.5';
+            gerarNovoNome(true); resetConnection(); iniciarCriacaoComRotacao(false);
+        }
+
+        function resetConnection() {
+            activeToken = ""; activeAccountId = ""; 
+            localStorage.removeItem('xforge_active_token_enc'); localStorage.removeItem('xforge_active_api'); localStorage.removeItem('xforge_active_email');
+            if (pollTimeout) clearTimeout(pollTimeout);
+            document.getElementById('status-msg').style.display = 'none';
+            
+            const btnCreate = document.getElementById('btn-create'); btnCreate.innerHTML = '<i class="fa-solid fa-check"></i> Create / Access'; btnCreate.classList.remove('active');
+            const list = document.getElementById('mailbox-list');
+            if(list) list.innerHTML = `<div class="empty" id="mailbox-empty"><i class="fa-regular fa-envelope-open" style="font-size:3rem; color:#ddd; margin-bottom:15px;"></i><h5 style="color:#555">Inbox Empty</h5><p class="text-muted small">Waiting for incoming emails...</p></div>`;
+        }
+
+       function gerarNomeRussoBase() {
+            const p1 = ["vl","al","mi","dm","gr","ya","ro","st","bo","iv","yu","pa","ol","ig","gl","py","an","ma","il","le","va","ar","de","eu","za","ki","ni","lu","zo","ve","ra","ta","po","na","ka","sv","da","ti","fy","ko","vi","ed","ru","se","pr","fi","sa","ga","do"];
+            const p2 = ["ad","le","ik","mi","ri","ar","os","ta","or","va","ur","av","lg","go","yo","om","na","ak","ly","eo","ad","te","rt","en","ug","ev","ar","as","ir","ik","ud","oy","er","ay","an","ol","at","ve","ar","il","ad","og","ih","yo","on","du","im","ob"];
+            const p3 = ["im","on","ov","en","is","an","ol","in","ir","at","ev","as","od","ut","ok","ak","uk","ep","op","ip","ap","up","am","em","im","om","um","al","el","il","ol","ul","ar","er","ir","or","ur","av","ev","iv","ov","uv","az","ez","iz","oz","uz","ag","eg","ig"];
+            const p4 = ["ir","ov","ok","as","ik","an","os","en","ol","in","ar","ut","ev","at","od","uk","ak","ep","op","ip","ap","up","am","em","im","om","um","al","el","il","ol","ul","ar","er","ir","or","ur","av","ev","iv","ov","uv","az","ez","iz","oz","uz","ag","eg","ig"];
+            const p5 = ["ov","ev","in","yn","ki","ky","ch","ko","va","ya","na","ta","ka","ra","za","sa","pa","da","ma","la"];
+        
+            const t1 = p1[Math.floor(Math.random() * p1.length)];
+            const t2 = p2[Math.floor(Math.random() * p2.length)];
+            const t3 = p3[Math.floor(Math.random() * p3.length)];
+            const t4 = p4[Math.floor(Math.random() * p4.length)];
+            const t5 = p5[Math.floor(Math.random() * p5.length)];
+        
+            return t1 + t2 + t3 + t4 + t5;
+        }
+
+        function gerarNovoNome(rotateDomain = true) {
+            let nomeSorteado = "";
+            let nomeJaExiste = true;
+            
+            // Loop de Anti-Colisão
+            do {
+                nomeSorteado = gerarNomeRussoBase();
+                // Verifica se o nome já existe no histórico do usuário
+                nomeJaExiste = localAccountsHistory.some(conta => conta.email.split('@')[0] === nomeSorteado);
+            } while (nomeJaExiste);
+
+            document.getElementById('userInput').value = nomeSorteado;
+            
+            if (rotateDomain) {
+                const select = document.getElementById('domainSelect');
+                if (select.options.length > 0) { 
+                    select.selectedIndex = Math.floor(Math.random() * select.options.length); 
+                }
+            }
+        }
+
+        async function iniciarCriacaoComRotacao(isFallback = false) {
+            const btnRandom = document.getElementById('btn-random');
+            btnRandom.disabled = true; btnRandom.style.pointerEvents = 'none'; btnRandom.style.opacity = '0.5';
+
+            const user = document.getElementById('userInput').value.trim();
+            const select = document.getElementById('domainSelect');
+            
+            if (isFallback) {
+                const optionTM = Array.from(select.options).find(opt => opt.dataset.api === API_TM);
+                if (optionTM) { select.value = optionTM.value; } else { gerarNovoNome(true); return iniciarCriacaoComRotacao(false); }
+            }
+
+            const domain = select.value;
+            const selectedOption = select.options[select.selectedIndex];
+            currentApiBase = selectedOption.dataset.api || API_GW; 
+            let address = `${user}@${domain}`;
+
+            // LÓGICA GUERRILLA MAIL
+            if (currentApiBase === API_GUERRILLA) {
+                document.getElementById('btn-create').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Alocando...';
+                
+                try {
+                    const res = await fetch(`${API_GUERRILLA}?f=set_email_user&email_user=${user}&domain=${domain}`);
+                    if (!res.ok) throw new Error("Erro de comunicação com Guerrilla Mail");
+                    
+                    const data = await res.json();
+                    activeToken = data.sid_token; 
+                    
+                    const newParts = data.email_addr.split('@');
+                    document.getElementById('userInput').value = newParts[0];
+                    address = `${newParts[0]}@${domain}`;
+
+                    localStorage.setItem('xforge_active_token_enc', encryptTokenLocal(activeToken));
+                    localStorage.setItem('xforge_active_api', currentApiBase);
+                    localStorage.setItem('xforge_active_email', address);
+                    salvarNoHistorico(address, activeToken, currentApiBase);
+
+                    document.getElementById('btn-create').innerHTML = '<i class="fa-solid fa-check"></i> Connected';
+                    document.getElementById('btn-create').classList.add('active');
+                    atualizarStatusAPI(address, currentApiBase);
+
+                    btnRandom.disabled = false; btnRandom.style.pointerEvents = 'auto'; btnRandom.style.opacity = '1';
+                    document.getElementById('mailbox-list').innerHTML = `<div class="empty" id="mailbox-empty"><i class="fa-solid fa-satellite-dish fa-beat" style="font-size:3rem; color:var(--primary); margin-bottom:15px;"></i><h5 style="color:#555">Monitoring Network...</h5><p class="text-muted small">Iniciando escuta para ${address}</p></div>`;
+                    
+                    iniciarAutoRefresh(); buscarEmails();
+                    return;
+                } catch (error) {
+                    console.warn("Erro GRR:", error);
+                    atualizarStatsDominio(domain, false);
+                    gerarNovoNome(true); return iniciarCriacaoComRotacao(false);
+                }
+            }
+
+            // BYPASS DA CRIAÇÃO PARA MAIL7 e MAILDROP (Ambos Catch-All)
+            if (currentApiBase === API_M7 || currentApiBase === API_MAILDROP) {
+                activeToken = currentApiBase === API_M7 ? "mail7_bypass" : "maildrop_bypass"; 
+                localStorage.setItem('xforge_active_token_enc', encryptTokenLocal(activeToken));
+                localStorage.setItem('xforge_active_api', currentApiBase);
+                localStorage.setItem('xforge_active_email', address);
+                
+                salvarNoHistorico(address, activeToken, currentApiBase);
+
+                document.getElementById('btn-create').innerHTML = '<i class="fa-solid fa-check"></i> Connected';
+                document.getElementById('btn-create').classList.add('active');
+                atualizarStatusAPI(address, currentApiBase);
+
+                btnRandom.disabled = false; btnRandom.style.pointerEvents = 'auto'; btnRandom.style.opacity = '1';
+                
+                document.getElementById('mailbox-list').innerHTML = `<div class="empty" id="mailbox-empty"><i class="fa-solid fa-satellite-dish fa-beat" style="font-size:3rem; color:var(--primary); margin-bottom:15px;"></i><h5 style="color:#555">Monitoring Network...</h5><p class="text-muted small">Iniciando escuta para ${address}</p></div>`;
+                iniciarAutoRefresh(); buscarEmails();
+                return;
+            }
+
+            // CRIAÇÃO NORMAL (GW / TM)
+            const password = "Pwd_" + Math.random().toString(36).substring(2, 12) + "X!";
+            const accountData = { address: address, password: password };
+
+            document.getElementById('btn-create').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Conectando...';
+
+            try {
+                await delay(300); 
+                let resCreate = await fetchWithRetry(`${currentApiBase}/accounts`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(accountData) });
+
+                if (!resCreate.ok) {
+                    atualizarStatsDominio(domain, false); 
+                    if (resCreate.status === 422) { gerarNovoNome(false); return iniciarCriacaoComRotacao(false); } 
+                    else if (!isFallback && currentApiBase === API_GW) { return iniciarCriacaoComRotacao(true); } 
+                    else { gerarNovoNome(true); return iniciarCriacaoComRotacao(false); }
+                }
+
+                const createJson = await resCreate.json();
+                activeAccountId = createJson.id;
+
+                await delay(300); 
+                let resAuth = await fetchWithRetry(`${currentApiBase}/token`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(accountData) });
+
+                if (!resAuth.ok) { atualizarStatsDominio(domain, false); gerarNovoNome(true); return iniciarCriacaoComRotacao(false); }
+
+                atualizarStatsDominio(domain, true); 
+                const authJson = await resAuth.json();
+                activeToken = authJson.token;
+                
+                localStorage.setItem('xforge_active_token_enc', encryptTokenLocal(activeToken));
+                localStorage.setItem('xforge_active_api', currentApiBase);
+                localStorage.setItem('xforge_active_email', address);
+                
+                salvarNoHistorico(address, activeToken, currentApiBase);
+
+                document.getElementById('btn-create').innerHTML = '<i class="fa-solid fa-check"></i> Connected';
+                document.getElementById('btn-create').classList.add('active');
+                atualizarStatusAPI(address, currentApiBase);
+
+                btnRandom.disabled = false; btnRandom.style.pointerEvents = 'auto'; btnRandom.style.opacity = '1';
+                
+                document.getElementById('mailbox-list').innerHTML = `<div class="empty" id="mailbox-empty"><i class="fa-solid fa-satellite-dish fa-beat" style="font-size:3rem; color:var(--primary); margin-bottom:15px;"></i><h5 style="color:#555">Monitoring Network...</h5><p class="text-muted small">Auto-refresh active</p></div>`;
+                iniciarAutoRefresh(); buscarEmails();
+
+            } catch (error) {
+                console.error("[Criacao Erro]", error);
+                atualizarStatsDominio(domain, false);
+                if (!isFallback && currentApiBase === API_GW) { return iniciarCriacaoComRotacao(true); } 
+                else { gerarNovoNome(true); return iniciarCriacaoComRotacao(false); }
+            }
+        }
+
+        function copiarEmail() {
+            const user = document.getElementById('userInput').value;
+            const domain = document.getElementById('domainSelect').value;
+            navigator.clipboard.writeText(`${user}@${domain}`);
+            showToast(`Copiado: ${user}@${domain}`, "success");
+        }
+
+        // ==========================================
+        // 6. SMART POLLING & INBOX 
+        // ==========================================
+        let pollTimeout = null;
+        let emptyCycles = 0; 
+        let lastUserInteraction = Date.now();
+
+        const registerActivity = debounce(() => { lastUserInteraction = Date.now(); }, 1000);
+        window.addEventListener('mousemove', registerActivity);
+        window.addEventListener('keydown', registerActivity);
+        window.addEventListener('click', registerActivity);
+        window.addEventListener('touchstart', registerActivity);
+
+        function iniciarAutoRefresh() {
+            if (pollTimeout) clearTimeout(pollTimeout);
+            pollLoop();
+        }
+
+        function forceRefresh() {
+            emptyCycles = 0; lastUserInteraction = Date.now();
+            if (pollTimeout) clearTimeout(pollTimeout);
+            buscarEmails().then(() => pollLoop());
+        }
+
+        async function pollLoop() {
+            if (!activeToken) return;
+            await buscarEmails();
+            
+            let nextInterval = 5000;
+            const timeSinceActive = Date.now() - lastUserInteraction;
+            
+            if (document.hidden) {
+                nextInterval = 15000; 
+            } else if (timeSinceActive < 10000 && emptyCycles < 5) {
+                nextInterval = 3000; 
+            } else {
+                nextInterval = 5000; 
+            }
+
+            if (emptyCycles > 10) nextInterval += 2000;
+            if (emptyCycles > 25) nextInterval += 5000;
+
+            pollTimeout = setTimeout(pollLoop, nextInterval);
+        }
+
+        async function buscarEmails() {
+            if (!activeToken) return;
+            const btnRefresh = document.getElementById('refresh');
+            btnRefresh.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i>';
+
+            try {
+                let msgs = [];
+                const email = localStorage.getItem('xforge_active_email') || `${document.getElementById('userInput').value}@${document.getElementById('domainSelect').value}`;
+                
+                // LÓGICA MAILDROP.CC (GRAPHQL)
+                if (currentApiBase === API_MAILDROP) {
+                    const userOnly = email.split('@')[0]; 
+                    const res = await fetch(`https://api.maildrop.cc/graphql`, { 
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                        body: JSON.stringify({
+                            query: `query { inbox(mailbox: "${userOnly}") { id headerfrom subject date } }`
+                        })
+                    });
+                    
+                    if (!res.ok) {
+                        throw new Error(`Erro HTTP Maildrop GraphQL: ${res.status}`);
+                    } else {
+                        const data = await res.json();
+                        let rawMsgs = data.data?.inbox || [];
+                        
+                        msgs = rawMsgs.map((m) => {
+                            return {
+                                id: m.id,
+                                subject: m.subject || "(Sem assunto)",
+                                from: { address: m.headerfrom || "unknown@sender.com" },
+                                intro: "", 
+                                createdAt: m.date || new Date().toISOString()
+                            };
+                        });
+                    }
+                }
+                // LÓGICA GUERRILLA MAIL
+                else if (currentApiBase === API_GUERRILLA) {
+                    const res = await fetch(`${API_GUERRILLA}?f=get_email_list&offset=0&sid_token=${activeToken}`);
+                    if (!res.ok) throw new Error(`Erro HTTP Guerrilla Mail`);
+                    const data = await res.json();
+                    
+                    msgs = (data.list || []).filter(m => m.mail_id !== "1" && m.mail_from !== "no-reply@guerrillamail.com").map(m => ({
+                        id: m.mail_id,
+                        subject: m.mail_subject || "(Sem assunto)",
+                        from: { address: m.mail_from || "unknown@sender.com" },
+                        intro: m.mail_excerpt || "",
+                        createdAt: new Date(m.mail_timestamp * 1000).toISOString()
+                    }));
+                }
+                // LÓGICA MAIL7 
+                else if (currentApiBase === API_M7) {
+                    const res = await fetch(`https://api.mail7.app/api/emails?address=${email}`, { 
+                        method: 'GET',
+                        cache: 'no-store',
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    
+                    if (res.status === 404 || res.status === 400) {
+                        window.mail7CacheTemp = [];
+                        msgs = [];
+                    } else if (!res.ok) {
+                        throw new Error(`Erro HTTP Mail7: ${res.status}`);
+                    } else {
+                        const textRes = await res.text();
+                        if (!textRes || textRes.trim() === "" || textRes.toLowerCase().includes("not found")) {
+                            window.mail7CacheTemp = [];
+                            msgs = [];
+                        } else {
+                            try {
+                                const data = JSON.parse(textRes);
+                                if (data.status === "error" || data.error) {
+                                    window.mail7CacheTemp = [];
+                                    msgs = [];
+                                } else {
+                                    let rawMsgs = [];
+                                    if (Array.isArray(data)) rawMsgs = data;
+                                    else if (Array.isArray(data.data)) rawMsgs = data.data;
+                                    else if (Array.isArray(data.emails)) rawMsgs = data.emails;
+                                    else if (Array.isArray(data.messages)) rawMsgs = data.messages;
+                                    else {
+                                        for (let key in data) {
+                                            if (Array.isArray(data[key])) { rawMsgs = data[key]; break; }
+                                        }
+                                    }
+
+                                    window.mail7CacheTemp = rawMsgs; 
+
+                                    msgs = rawMsgs.map((m, index) => {
+                                        let senderAddress = "unknown@sender.com";
+                                        if (typeof m.from === 'string') senderAddress = m.from;
+                                        else if (Array.isArray(m.from) && m.from.length > 0) senderAddress = m.from[0].address || m.from[0];
+                                        else if (m.from && m.from.address) senderAddress = m.from.address;
+                                        else if (m.sender) senderAddress = typeof m.sender === 'string' ? m.sender : (m.sender.address || "unknown");
+
+                                        return {
+                                            id: `m7_${index}`,
+                                            subject: m.subject || "(Sem assunto)",
+                                            from: { address: senderAddress },
+                                            intro: m.text ? m.text.substring(0, 50) + "..." : (m.html ? "Email em HTML..." : ""),
+                                            createdAt: m.date || new Date().toISOString(),
+                                            _rawIndex: index 
+                                        };
+                                    });
+                                }
+                            } catch (e) {
+                                console.warn("Mail7 retornou algo inesperado.", e);
+                                window.mail7CacheTemp = [];
+                                msgs = [];
+                            }
+                        }
+                    }
+                } else {
+                    // LÓGICA MAIL.GW e MAIL.TM 
+                    const res = await fetch(`${currentApiBase}/messages?page=1`, { headers: { 'Authorization': `Bearer ${activeToken}` } });
+                    if (!res.ok) {
+                        if(res.status === 401) {
+                            resetConnection();
+                            showToast("Sessão expirada. Reconectando...");
+                            return iniciarCriacaoComRotacao(false);
+                        }
+                        throw new Error("Erro fetch messages GW/TM");
+                    }
+
+                    const data = await res.json();
+                    msgs = data['hydra:member'];
+                }
+
+                renderizarInbox(msgs);
+                if (msgs.length === 0) emptyCycles++; else emptyCycles = 0; 
+
+            } catch (err) { console.error("[Inbox Erro]", err); } 
+            finally { setTimeout(() => btnRefresh.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh', 500); }
+        }
+
+        function classificarEmail(subject, fromAddress) {
+            let tags = "";
+            const lowerSub = subject.toLowerCase();
+            const lowerFrom = fromAddress.toLowerCase();
+
+            if (/(google|facebook|amazon|microsoft|apple|netflix|github)/i.test(lowerFrom)) {
+                tags += '<span class="mail-tag tag-trusted"><i class="fa-solid fa-shield-check"></i> TRUSTED</span>';
+            }
+            if (/(verify|code|otp|pin|auth|password|senha)/i.test(lowerSub)) {
+                tags += '<span class="mail-tag tag-code"><i class="fa-solid fa-key"></i> CODE</span>';
+            }
+            if (/(login|sign in|confirm|click)/i.test(lowerSub)) {
+                tags += '<span class="mail-tag tag-link"><i class="fa-solid fa-link"></i> LINK</span>';
+            }
+            
+            if(tags === "") tags = '<span class="mail-tag tag-other">MAIL</span>';
+            return tags;
+        }
+
+        function renderizarInbox(messages) {
+            const list = document.getElementById('mailbox-list');
+            if (!messages || messages.length === 0) {
+                const timeNow = new Date().toLocaleTimeString();
+                list.innerHTML = `<div class="empty" id="mailbox-empty"><i class="fa-solid fa-satellite-dish fa-beat" style="font-size:3rem; color:var(--primary); margin-bottom:15px;"></i><h5 style="color:#555">Monitoring Network...</h5><p class="text-muted small">Última checagem: ${timeNow}<br>Nenhuma mensagem recebida ainda.</p></div>`;
+                return;
+            }
+
+            const limitedMsgs = messages.slice(0, 20);
+            list.innerHTML = "";
+
+            limitedMsgs.forEach(msg => {
+                const date = new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                const tag = classificarEmail(msg.subject, msg.from.address);
+                
+                const item = document.createElement('div'); item.className = "email-item"; item.onclick = () => abrirEmail(msg.id, msg._rawIndex);
+                item.innerHTML = `
+                    <div style="flex:1; font-weight:600; color:#333; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${msg.from.address}</div>
+                    <div style="flex:2; color:#555; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${tag} <strong>${msg.subject || "(No Subject)"}</strong> <span style="opacity:0.6; font-size:0.85rem;">- ${msg.intro || ""}</span></div>
+                    <div class="time-col" style="width:80px; text-align:right; font-size:0.85rem; color:#888;">${date}</div>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        async function abrirEmail(id, rawIndex) {
+            const smartBar = document.getElementById('smart-actions');
+            smartBar.style.display = 'none'; smartBar.innerHTML = ''; 
+
+            try {
+                let msg;
+
+                if (currentApiBase === API_MAILDROP) {
+                    const email = localStorage.getItem('xforge_active_email') || `${document.getElementById('userInput').value}@${document.getElementById('domainSelect').value}`;
+                    const userOnly = email.split('@')[0];
+                    const res = await fetch(`https://api.maildrop.cc/graphql`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                        body: JSON.stringify({
+                            query: `query { message(mailbox: "${userOnly}", id: "${id}") { id headerfrom subject date html data } }`
+                        })
+                    });
+                    if (!res.ok) throw new Error("Erro ao ler Maildrop GraphQL");
+                    const jsonRes = await res.json();
+                    const rawMsg = jsonRes.data?.message;
+                    if (!rawMsg) throw new Error("Mensagem não encontrada");
+                    
+                    msg = {
+                        subject: rawMsg.subject || "(Sem assunto)",
+                        html: rawMsg.html ? [rawMsg.html] : null,
+                        text: rawMsg.data || ""
+                    };
+                } else if (currentApiBase === API_M7) {
+                    const rawMsg = window.mail7CacheTemp ? window.mail7CacheTemp[rawIndex] : null;
+                    if (!rawMsg) throw new Error("Email não encontrado no cache");
+                    
+                    msg = {
+                        subject: rawMsg.subject || "(Sem assunto)",
+                        html: rawMsg.html ? [rawMsg.html] : (rawMsg.textAsHtml ? [rawMsg.textAsHtml] : null),
+                        text: rawMsg.text || rawMsg.textPlain || ""
+                    };
+                } else if (currentApiBase === API_GUERRILLA) {
+                    const res = await fetch(`${API_GUERRILLA}?f=fetch_email&email_id=${id}&sid_token=${activeToken}`);
+                    if (!res.ok) throw new Error("Erro ler GuerrillaMail");
+                    const rawMsg = await res.json();
+                    
+                    // Descobre se o Guerrilla mandou HTML ou Texto Puro
+                    const bodyStr = rawMsg.mail_body || "";
+                    const isHtml = bodyStr.includes('<') && bodyStr.includes('>');
+                    
+                    msg = { 
+                        subject: rawMsg.mail_subject || "(Sem assunto)", 
+                        html: isHtml ? [bodyStr] : null, 
+                        text: isHtml ? "" : bodyStr 
+                    };
+                } else {
+                    const res = await fetch(`${currentApiBase}/messages/${id}`, { headers: { 'Authorization': `Bearer ${activeToken}` } });
+                    if (!res.ok) throw new Error("Erro ao ler");
+                    msg = await res.json();
+                }
+                
+               document.getElementById('view-subject').innerText = msg.subject;
+                const iframe = document.getElementById('view-iframe');
+                
+                // Injeção mais agressiva para o Guerrilla obedecer no mobile
+                const injectMeta = `<meta name="viewport" content="width=device-width, initial-scale=1.0"><style>*, img, table, div { max-width: 100% !important; height: auto !important; box-sizing: border-box !important; word-wrap: break-word !important; }</style>`;
+                
+                const htmlContent = msg.html ? injectMeta + msg.html[0] : (msg.text ? `<pre style="font-family:inherit; white-space:pre-wrap; padding:20px; font-size:1rem;">${msg.text}</pre>` : "<i>No content</i>");
+                iframe.srcdoc = htmlContent;
+                
+                travarScroll(); document.getElementById('email-view-modal').style.display = 'flex';
+
+            } catch (e) { console.error("View Error", e); showToast("Erro ao abrir email", "error"); }
+        }
+
+        window.onload = () => {
+            carregarDominios();
+            document.getElementById('userInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') { e.preventDefault(); iniciarCriacaoComRotacao(false); }
+            });
+        };
+
+        document.addEventListener('click', function(e) {
+            if (e.target && e.target.classList.contains('custom-modal')) {
+                fecharModal(e.target.id);
+            }
+        });
+
+    </script>
+</body>
+</html>
