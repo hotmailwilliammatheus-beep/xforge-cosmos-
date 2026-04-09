@@ -184,9 +184,9 @@
                         <i class="fa-solid fa-shield-halved text-primary"></i> X_FORGE <span style="font-weight:300; opacity:0.7">COSMOS</span>
                     </a>
                     <div class="ms-auto me-3">
-                        <a href="#" onclick="window.location.href='app.html'; return false;" class="btn btn-sm btn-primary rounded-pill px-4" style="font-weight: 700; box-shadow: 0 0 15px rgba(13, 110, 253, 0.4);">
-                            <i class="fa-solid fa-rocket"></i> Acessar X_Forge App
-                        </a>
+                       <a href="/app" class="btn btn-sm btn-primary rounded-pill px-4" style="font-weight: 700; box-shadow: 0 0 15px rgba(13, 110, 253, 0.4);">
+    <i class="fa-solid fa-rocket"></i> Acessar X_Forge App
+                    </a>
                     </div>
                     <div id="auth-area">
                         <button class="btn btn-outline-light btn-sm rounded-pill px-4" onclick="abrirLogin()">Login</button>
@@ -599,100 +599,55 @@
             }
         }
 
-        async function buscarTodosDominios(apiBase, prefixoLabel) {
-            let dominiosEncontrados = [];
-            let pagina = 1;
-            let temMaisPaginas = true;
-
-            while (temMaisPaginas) {
-                try {
-                    const res = await fetch(`${apiBase}/domains?page=${pagina}`);
-                    if (!res.ok) break; 
-                    
-                    const data = await res.json();
-                    const dominiosDaPagina = data['hydra:member'] || [];
-                    
-                    const ativos = dominiosDaPagina.filter(d => d.isActive && isValidDomain(d.domain));
-                    
-                    ativos.forEach(d => {
-                        dominiosEncontrados.push({ domain: d.domain, api: apiBase, label: prefixoLabel });
-                    });
-
-                    if (data['hydra:view'] && data['hydra:view']['hydra:next']) {
-                        pagina++; 
-                    } else {
-                        temMaisPaginas = false; 
-                    }
-                } catch (error) {
-                    console.warn(`Erro ao buscar página ${pagina} de ${apiBase}`, error);
-                    temMaisPaginas = false;
-                }
-            }
-            return dominiosEncontrados;
-        }
+    
 
         async function carregarDominios() {
-            try {
-                const select = document.getElementById('domainSelect');
-                select.innerHTML = "<option>Loading network...</option>";
-                
-                let domainsPool = [];
+    try {
+        const select = document.getElementById('domainSelect');
+        select.innerHTML = "<option>Loading network...</option>";
+        
+        // Pede a lista já pronta e misturada pro seu servidor Vercel!
+        const res = await fetch('/api/getDomains');
+        let domainsPool = await res.json();
 
-                const [dominiosGW, dominiosTM] = await Promise.all([
-                    buscarTodosDominios(API_GW, 'GW'),
-                    buscarTodosDominios(API_TM, 'TM')
-                ]);
-
-                domainsPool = [...dominiosGW, ...dominiosTM];
-
-                domainsPool.push({ domain: "mail7.app", api: API_M7, label: "M7" });
-                
-                // INTEGRAÇÃO OFICIAL MAILDROP E GUERRILLA MAIL
-                domainsPool.push({ domain: "maildrop.cc", api: API_MAILDROP, label: "MD" });
-                domainsPool.push({ domain: "sharklasers.com", api: API_GUERRILLA, label: "GRR" });
-                domainsPool.push({ domain: "grr.la", api: API_GUERRILLA, label: "GRR" });
-
-                if(domainsPool.length === 0) { 
-                    select.innerHTML = "<option>Network Error</option>"; 
-                    return showToast("As APIs de e-mail estão offline no momento.", "error"); 
-                }
-
-                domainsPool.sort((a, b) => {
-                    let sa = (domainStats[a.domain]?.success || 0) - (domainStats[a.domain]?.fail || 0);
-                    let sb = (domainStats[b.domain]?.success || 0) - (domainStats[b.domain]?.fail || 0);
-                    return sb - sa;
-                });
-
-                select.innerHTML = ""; 
-                
-                domainsPool.forEach(d => {
-                    const opt = document.createElement('option');
-                    opt.value = d.domain; 
-                    opt.text = `@${d.domain} (${d.label})`; 
-                    opt.dataset.api = d.api;
-                    select.appendChild(opt);
-                });
-
-                gerarNovoNome(false);
-                
-                const cachedToken = decryptTokenLocal(localStorage.getItem('xforge_active_token_enc'));
-                const cachedApi = localStorage.getItem('xforge_active_api');
-                const cachedEmail = localStorage.getItem('xforge_active_email');
-                
-                if (cachedToken && cachedApi && cachedEmail) {
-                    activeToken = cachedToken; currentApiBase = cachedApi;
-                    const parts = cachedEmail.split("@"); document.getElementById('userInput').value = parts[0];
-                    const match = Array.from(select.options).find(o => o.value === parts[1]); 
-                    if (match) { select.value = match.value; }
-                    
-                    atualizarStatusAPI(cachedEmail, currentApiBase);
-                    iniciarAutoRefresh(); buscarEmails();
-                    showToast("Sessão restaurada com sucesso!", "success");
-                } else {
-                    setTimeout(() => iniciarCriacaoComRotacao(false), 500);
-                }
-            } catch(e) { console.error("Erro Fatal no Quadruple Engine:", e); }
+        if(!domainsPool || domainsPool.length === 0) { 
+            select.innerHTML = "<option>Network Error</option>"; 
+            return showToast("As APIs de e-mail estão offline no momento.", "error"); 
         }
+
+        select.innerHTML = ""; 
+        domainsPool.forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d.domain; 
+            opt.text = `@${d.domain} (${d.label})`; 
+            opt.dataset.api = d.api;
+            select.appendChild(opt);
+        });
+
+        gerarNovoNome(false);
+        
+        // Lógica de restaurar sessão continua igual...
+        const cachedToken = decryptTokenLocal(localStorage.getItem('xforge_active_token_enc'));
+        const cachedApi = localStorage.getItem('xforge_active_api');
+        const cachedEmail = localStorage.getItem('xforge_active_email');
+        
+        if (cachedToken && cachedApi && cachedEmail) {
+            activeToken = cachedToken; currentApiBase = cachedApi;
+            const parts = cachedEmail.split("@"); document.getElementById('userInput').value = parts[0];
+            const match = Array.from(select.options).find(o => o.value === parts[1]); 
+            if (match) { select.value = match.value; }
+            
+            atualizarStatusAPI(cachedEmail, currentApiBase);
+            iniciarAutoRefresh(); buscarEmails();
+            showToast("Sessão restaurada com sucesso!", "success");
+        } else {
+            setTimeout(() => iniciarCriacaoComRotacao(false), 500);
+        }
+    } catch(e) { 
+        console.error("Erro Fatal:", e); 
+        showToast("Erro ao conectar com o servidor.", "error");
+    }
+}
 
         function abrirHistory() {
             travarScroll();
@@ -813,129 +768,75 @@
         }
 
         async function iniciarCriacaoComRotacao(isFallback = false) {
-            const btnRandom = document.getElementById('btn-random');
-            btnRandom.disabled = true; btnRandom.style.pointerEvents = 'none'; btnRandom.style.opacity = '0.5';
+    const btnRandom = document.getElementById('btn-random');
+    btnRandom.disabled = true; btnRandom.style.pointerEvents = 'none'; btnRandom.style.opacity = '0.5';
 
-            const user = document.getElementById('userInput').value.trim();
-            const select = document.getElementById('domainSelect');
-            
-            if (isFallback) {
-                const optionTM = Array.from(select.options).find(opt => opt.dataset.api === API_TM);
-                if (optionTM) { select.value = optionTM.value; } else { gerarNovoNome(true); return iniciarCriacaoComRotacao(false); }
-            }
+    const user = document.getElementById('userInput').value.trim();
+    const select = document.getElementById('domainSelect');
+    
+    if (isFallback) {
+        const optionTM = Array.from(select.options).find(opt => opt.dataset.api === API_TM);
+        if (optionTM) { select.value = optionTM.value; } else { gerarNovoNome(true); return iniciarCriacaoComRotacao(false); }
+    }
 
-            const domain = select.value;
-            const selectedOption = select.options[select.selectedIndex];
-            currentApiBase = selectedOption.dataset.api || API_GW; 
-            let address = `${user}@${domain}`;
+    const domain = select.value;
+    const selectedOption = select.options[select.selectedIndex];
+    currentApiBase = selectedOption.dataset.api || API_GW; 
+    let address = `${user}@${domain}`;
+    const password = "Pwd_" + Math.random().toString(36).substring(2, 12) + "X!";
 
-            // LÓGICA GUERRILLA MAIL
-            if (currentApiBase === API_GUERRILLA) {
-                document.getElementById('btn-create').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Alocando...';
-                
-                try {
-                    const res = await fetch(`${API_GUERRILLA}?f=set_email_user&email_user=${user}&domain=${domain}`);
-                    if (!res.ok) throw new Error("Erro de comunicação com Guerrilla Mail");
-                    
-                    const data = await res.json();
-                    activeToken = data.sid_token; 
-                    
-                    const newParts = data.email_addr.split('@');
-                    document.getElementById('userInput').value = newParts[0];
-                    address = `${newParts[0]}@${domain}`;
+    document.getElementById('btn-create').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Conectando...';
 
-                    localStorage.setItem('xforge_active_token_enc', encryptTokenLocal(activeToken));
-                    localStorage.setItem('xforge_active_api', currentApiBase);
-                    localStorage.setItem('xforge_active_email', address);
-                    salvarNoHistorico(address, activeToken, currentApiBase);
+    try {
+        // Envia o pedido de criação para o SEU servidor Vercel
+        const resCreate = await fetch(`/api/createEmail`, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ address, password, currentApiBase, domain }) 
+        });
 
-                    document.getElementById('btn-create').innerHTML = '<i class="fa-solid fa-check"></i> Connected';
-                    document.getElementById('btn-create').classList.add('active');
-                    atualizarStatusAPI(address, currentApiBase);
+        const data = await resCreate.json();
 
-                    btnRandom.disabled = false; btnRandom.style.pointerEvents = 'auto'; btnRandom.style.opacity = '1';
-                    document.getElementById('mailbox-list').innerHTML = `<div class="empty" id="mailbox-empty"><i class="fa-solid fa-satellite-dish fa-beat" style="font-size:3rem; color:var(--primary); margin-bottom:15px;"></i><h5 style="color:#555">Monitoring Network...</h5><p class="text-muted small">Iniciando escuta para ${address}</p></div>`;
-                    
-                    iniciarAutoRefresh(); buscarEmails();
-                    return;
-                } catch (error) {
-                    console.warn("Erro GRR:", error);
-                    atualizarStatsDominio(domain, false);
-                    gerarNovoNome(true); return iniciarCriacaoComRotacao(false);
-                }
-            }
-
-            // BYPASS DA CRIAÇÃO PARA MAIL7 e MAILDROP (Ambos Catch-All)
-            if (currentApiBase === API_M7 || currentApiBase === API_MAILDROP) {
-                activeToken = currentApiBase === API_M7 ? "mail7_bypass" : "maildrop_bypass"; 
-                localStorage.setItem('xforge_active_token_enc', encryptTokenLocal(activeToken));
-                localStorage.setItem('xforge_active_api', currentApiBase);
-                localStorage.setItem('xforge_active_email', address);
-                
-                salvarNoHistorico(address, activeToken, currentApiBase);
-
-                document.getElementById('btn-create').innerHTML = '<i class="fa-solid fa-check"></i> Connected';
-                document.getElementById('btn-create').classList.add('active');
-                atualizarStatusAPI(address, currentApiBase);
-
-                btnRandom.disabled = false; btnRandom.style.pointerEvents = 'auto'; btnRandom.style.opacity = '1';
-                
-                document.getElementById('mailbox-list').innerHTML = `<div class="empty" id="mailbox-empty"><i class="fa-solid fa-satellite-dish fa-beat" style="font-size:3rem; color:var(--primary); margin-bottom:15px;"></i><h5 style="color:#555">Monitoring Network...</h5><p class="text-muted small">Iniciando escuta para ${address}</p></div>`;
-                iniciarAutoRefresh(); buscarEmails();
-                return;
-            }
-
-            // CRIAÇÃO NORMAL (GW / TM)
-            const password = "Pwd_" + Math.random().toString(36).substring(2, 12) + "X!";
-            const accountData = { address: address, password: password };
-
-            document.getElementById('btn-create').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Conectando...';
-
-            try {
-                await delay(300); 
-                let resCreate = await fetchWithRetry(`${currentApiBase}/accounts`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(accountData) });
-
-                if (!resCreate.ok) {
-                    atualizarStatsDominio(domain, false); 
-                    if (resCreate.status === 422) { gerarNovoNome(false); return iniciarCriacaoComRotacao(false); } 
-                    else if (!isFallback && currentApiBase === API_GW) { return iniciarCriacaoComRotacao(true); } 
-                    else { gerarNovoNome(true); return iniciarCriacaoComRotacao(false); }
-                }
-
-                const createJson = await resCreate.json();
-                activeAccountId = createJson.id;
-
-                await delay(300); 
-                let resAuth = await fetchWithRetry(`${currentApiBase}/token`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(accountData) });
-
-                if (!resAuth.ok) { atualizarStatsDominio(domain, false); gerarNovoNome(true); return iniciarCriacaoComRotacao(false); }
-
-                atualizarStatsDominio(domain, true); 
-                const authJson = await resAuth.json();
-                activeToken = authJson.token;
-                
-                localStorage.setItem('xforge_active_token_enc', encryptTokenLocal(activeToken));
-                localStorage.setItem('xforge_active_api', currentApiBase);
-                localStorage.setItem('xforge_active_email', address);
-                
-                salvarNoHistorico(address, activeToken, currentApiBase);
-
-                document.getElementById('btn-create').innerHTML = '<i class="fa-solid fa-check"></i> Connected';
-                document.getElementById('btn-create').classList.add('active');
-                atualizarStatusAPI(address, currentApiBase);
-
-                btnRandom.disabled = false; btnRandom.style.pointerEvents = 'auto'; btnRandom.style.opacity = '1';
-                
-                document.getElementById('mailbox-list').innerHTML = `<div class="empty" id="mailbox-empty"><i class="fa-solid fa-satellite-dish fa-beat" style="font-size:3rem; color:var(--primary); margin-bottom:15px;"></i><h5 style="color:#555">Monitoring Network...</h5><p class="text-muted small">Auto-refresh active</p></div>`;
-                iniciarAutoRefresh(); buscarEmails();
-
-            } catch (error) {
-                console.error("[Criacao Erro]", error);
-                atualizarStatsDominio(domain, false);
-                if (!isFallback && currentApiBase === API_GW) { return iniciarCriacaoComRotacao(true); } 
-                else { gerarNovoNome(true); return iniciarCriacaoComRotacao(false); }
-            }
+        if (!resCreate.ok) {
+            atualizarStatsDominio(domain, false); 
+            if (resCreate.status === 422) { gerarNovoNome(false); return iniciarCriacaoComRotacao(false); } 
+            else if (!isFallback && currentApiBase === API_GW) { return iniciarCriacaoComRotacao(true); } 
+            else { gerarNovoNome(true); return iniciarCriacaoComRotacao(false); }
         }
+
+        // Se deu tudo certo, a Vercel devolve o Token e o Endereço oficial (útil pro Guerrilla)
+        atualizarStatsDominio(domain, true); 
+        activeToken = data.token;
+        address = data.address || address; // Atualiza o endereço se a API mudou (ex: Guerrilla)
+        
+        // Se a API for Guerrilla, atualiza o input de usuário na tela
+        if(currentApiBase === API_GUERRILLA) {
+            document.getElementById('userInput').value = address.split('@')[0];
+        }
+
+        localStorage.setItem('xforge_active_token_enc', encryptTokenLocal(activeToken));
+        localStorage.setItem('xforge_active_api', currentApiBase);
+        localStorage.setItem('xforge_active_email', address);
+        salvarNoHistorico(address, activeToken, currentApiBase);
+
+        document.getElementById('btn-create').innerHTML = '<i class="fa-solid fa-check"></i> Connected';
+        document.getElementById('btn-create').classList.add('active');
+        atualizarStatusAPI(address, currentApiBase);
+
+        btnRandom.disabled = false; btnRandom.style.pointerEvents = 'auto'; btnRandom.style.opacity = '1';
+        document.getElementById('mailbox-list').innerHTML = `<div class="empty" id="mailbox-empty"><i class="fa-solid fa-satellite-dish fa-beat" style="font-size:3rem; color:var(--primary); margin-bottom:15px;"></i><h5 style="color:#555">Monitoring Network...</h5><p class="text-muted small">Auto-refresh active</p></div>`;
+        
+        iniciarAutoRefresh(); buscarEmails();
+
+    } catch (error) {
+        console.error("[Criacao Erro]", error);
+        atualizarStatsDominio(domain, false);
+        if (!isFallback && currentApiBase === API_GW) { return iniciarCriacaoComRotacao(true); } 
+        else { gerarNovoNome(true); return iniciarCriacaoComRotacao(false); }
+    }
+}
+                
+      
 
         function copiarEmail() {
             const user = document.getElementById('userInput').value;
@@ -989,141 +890,46 @@
             pollTimeout = setTimeout(pollLoop, nextInterval);
         }
 
-        async function buscarEmails() {
-            if (!activeToken) return;
-            const btnRefresh = document.getElementById('refresh');
-            btnRefresh.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i>';
+      
 
-            try {
-                let msgs = [];
-                const email = localStorage.getItem('xforge_active_email') || `${document.getElementById('userInput').value}@${document.getElementById('domainSelect').value}`;
-                
-                // LÓGICA MAILDROP.CC (GRAPHQL)
-                if (currentApiBase === API_MAILDROP) {
-                    const userOnly = email.split('@')[0]; 
-                    const res = await fetch(`https://api.maildrop.cc/graphql`, { 
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                        body: JSON.stringify({
-                            query: `query { inbox(mailbox: "${userOnly}") { id headerfrom subject date } }`
-                        })
-                    });
-                    
-                    if (!res.ok) {
-                        throw new Error(`Erro HTTP Maildrop GraphQL: ${res.status}`);
-                    } else {
-                        const data = await res.json();
-                        let rawMsgs = data.data?.inbox || [];
-                        
-                        msgs = rawMsgs.map((m) => {
-                            return {
-                                id: m.id,
-                                subject: m.subject || "(Sem assunto)",
-                                from: { address: m.headerfrom || "unknown@sender.com" },
-                                intro: "", 
-                                createdAt: m.date || new Date().toISOString()
-                            };
-                        });
-                    }
-                }
-                // LÓGICA GUERRILLA MAIL
-                else if (currentApiBase === API_GUERRILLA) {
-                    const res = await fetch(`${API_GUERRILLA}?f=get_email_list&offset=0&sid_token=${activeToken}`);
-                    if (!res.ok) throw new Error(`Erro HTTP Guerrilla Mail`);
-                    const data = await res.json();
-                    
-                    msgs = (data.list || []).filter(m => m.mail_id !== "1" && m.mail_from !== "no-reply@guerrillamail.com").map(m => ({
-                        id: m.mail_id,
-                        subject: m.mail_subject || "(Sem assunto)",
-                        from: { address: m.mail_from || "unknown@sender.com" },
-                        intro: m.mail_excerpt || "",
-                        createdAt: new Date(m.mail_timestamp * 1000).toISOString()
-                    }));
-                }
-                // LÓGICA MAIL7 
-                else if (currentApiBase === API_M7) {
-                    const res = await fetch(`https://api.mail7.app/api/emails?address=${email}`, { 
-                        method: 'GET',
-                        cache: 'no-store',
-                        headers: { 'Accept': 'application/json' }
-                    });
-                    
-                    if (res.status === 404 || res.status === 400) {
-                        window.mail7CacheTemp = [];
-                        msgs = [];
-                    } else if (!res.ok) {
-                        throw new Error(`Erro HTTP Mail7: ${res.status}`);
-                    } else {
-                        const textRes = await res.text();
-                        if (!textRes || textRes.trim() === "" || textRes.toLowerCase().includes("not found")) {
-                            window.mail7CacheTemp = [];
-                            msgs = [];
-                        } else {
-                            try {
-                                const data = JSON.parse(textRes);
-                                if (data.status === "error" || data.error) {
-                                    window.mail7CacheTemp = [];
-                                    msgs = [];
-                                } else {
-                                    let rawMsgs = [];
-                                    if (Array.isArray(data)) rawMsgs = data;
-                                    else if (Array.isArray(data.data)) rawMsgs = data.data;
-                                    else if (Array.isArray(data.emails)) rawMsgs = data.emails;
-                                    else if (Array.isArray(data.messages)) rawMsgs = data.messages;
-                                    else {
-                                        for (let key in data) {
-                                            if (Array.isArray(data[key])) { rawMsgs = data[key]; break; }
-                                        }
-                                    }
+async function buscarEmails() {
+    if (!activeToken) return;
+    const btnRefresh = document.getElementById('refresh');
+    btnRefresh.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i>';
 
-                                    window.mail7CacheTemp = rawMsgs; 
+    try {
+        const email = localStorage.getItem('xforge_active_email') || `${document.getElementById('userInput').value}@${document.getElementById('domainSelect').value}`;
+        
+        // Seu index.html pede os emails diretamente pro seu servidor seguro!
+        const response = await fetch('/api/fetchInbox', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                currentApiBase: currentApiBase,
+                activeToken: activeToken,
+                email: email
+            })
+        });
 
-                                    msgs = rawMsgs.map((m, index) => {
-                                        let senderAddress = "unknown@sender.com";
-                                        if (typeof m.from === 'string') senderAddress = m.from;
-                                        else if (Array.isArray(m.from) && m.from.length > 0) senderAddress = m.from[0].address || m.from[0];
-                                        else if (m.from && m.from.address) senderAddress = m.from.address;
-                                        else if (m.sender) senderAddress = typeof m.sender === 'string' ? m.sender : (m.sender.address || "unknown");
-
-                                        return {
-                                            id: `m7_${index}`,
-                                            subject: m.subject || "(Sem assunto)",
-                                            from: { address: senderAddress },
-                                            intro: m.text ? m.text.substring(0, 50) + "..." : (m.html ? "Email em HTML..." : ""),
-                                            createdAt: m.date || new Date().toISOString(),
-                                            _rawIndex: index 
-                                        };
-                                    });
-                                }
-                            } catch (e) {
-                                console.warn("Mail7 retornou algo inesperado.", e);
-                                window.mail7CacheTemp = [];
-                                msgs = [];
-                            }
-                        }
-                    }
-                } else {
-                    // LÓGICA MAIL.GW e MAIL.TM 
-                    const res = await fetch(`${currentApiBase}/messages?page=1`, { headers: { 'Authorization': `Bearer ${activeToken}` } });
-                    if (!res.ok) {
-                        if(res.status === 401) {
-                            resetConnection();
-                            showToast("Sessão expirada. Reconectando...");
-                            return iniciarCriacaoComRotacao(false);
-                        }
-                        throw new Error("Erro fetch messages GW/TM");
-                    }
-
-                    const data = await res.json();
-                    msgs = data['hydra:member'];
-                }
-
-                renderizarInbox(msgs);
-                if (msgs.length === 0) emptyCycles++; else emptyCycles = 0; 
-
-            } catch (err) { console.error("[Inbox Erro]", err); } 
-            finally { setTimeout(() => btnRefresh.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh', 500); }
+        if (response.status === 401) {
+            resetConnection();
+            showToast("Sessão expirada. Reconectando...");
+            return iniciarCriacaoComRotacao(false);
         }
+
+        const msgs = await response.json();
+
+        // Manda os emails para aparecerem na tela
+        renderizarInbox(msgs);
+        if (msgs.length === 0) emptyCycles++; else emptyCycles = 0; 
+
+    } catch (err) { 
+        console.error("[Inbox Erro]", err); 
+    } 
+    finally { 
+        setTimeout(() => btnRefresh.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh', 500); 
+    }
+}
 
         function classificarEmail(subject, fromAddress) {
             let tags = "";
@@ -1169,34 +975,16 @@
             });
         }
 
-        async function abrirEmail(id, rawIndex) {
+       async function abrirEmail(id, rawIndex) {
             const smartBar = document.getElementById('smart-actions');
             smartBar.style.display = 'none'; smartBar.innerHTML = ''; 
 
             try {
                 let msg;
+                const email = localStorage.getItem('xforge_active_email') || `${document.getElementById('userInput').value}@${document.getElementById('domainSelect').value}`;
 
-                if (currentApiBase === API_MAILDROP) {
-                    const email = localStorage.getItem('xforge_active_email') || `${document.getElementById('userInput').value}@${document.getElementById('domainSelect').value}`;
-                    const userOnly = email.split('@')[0];
-                    const res = await fetch(`https://api.maildrop.cc/graphql`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                        body: JSON.stringify({
-                            query: `query { message(mailbox: "${userOnly}", id: "${id}") { id headerfrom subject date html data } }`
-                        })
-                    });
-                    if (!res.ok) throw new Error("Erro ao ler Maildrop GraphQL");
-                    const jsonRes = await res.json();
-                    const rawMsg = jsonRes.data?.message;
-                    if (!rawMsg) throw new Error("Mensagem não encontrada");
-                    
-                    msg = {
-                        subject: rawMsg.subject || "(Sem assunto)",
-                        html: rawMsg.html ? [rawMsg.html] : null,
-                        text: rawMsg.data || ""
-                    };
-                } else if (currentApiBase === API_M7) {
+                // Se for MAIL7, usa o cache local, nem precisa pedir pro backend!
+                if (currentApiBase === API_M7) {
                     const rawMsg = window.mail7CacheTemp ? window.mail7CacheTemp[rawIndex] : null;
                     if (!rawMsg) throw new Error("Email não encontrado no cache");
                     
@@ -1205,30 +993,21 @@
                         html: rawMsg.html ? [rawMsg.html] : (rawMsg.textAsHtml ? [rawMsg.textAsHtml] : null),
                         text: rawMsg.text || rawMsg.textPlain || ""
                     };
-                } else if (currentApiBase === API_GUERRILLA) {
-                    const res = await fetch(`${API_GUERRILLA}?f=fetch_email&email_id=${id}&sid_token=${activeToken}`);
-                    if (!res.ok) throw new Error("Erro ler GuerrillaMail");
-                    const rawMsg = await res.json();
-                    
-                    // Descobre se o Guerrilla mandou HTML ou Texto Puro
-                    const bodyStr = rawMsg.mail_body || "";
-                    const isHtml = bodyStr.includes('<') && bodyStr.includes('>');
-                    
-                    msg = { 
-                        subject: rawMsg.mail_subject || "(Sem assunto)", 
-                        html: isHtml ? [bodyStr] : null, 
-                        text: isHtml ? "" : bodyStr 
-                    };
                 } else {
-                    const res = await fetch(`${currentApiBase}/messages/${id}`, { headers: { 'Authorization': `Bearer ${activeToken}` } });
-                    if (!res.ok) throw new Error("Erro ao ler");
-                    msg = await res.json();
+                    // Para as outras APIs, pedimos pro Vercel ler a mensagem
+                    const response = await fetch('/api/readEmail', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ currentApiBase, activeToken, id, email })
+                    });
+
+                    if(!response.ok) throw new Error("Erro ao ler e-mail do servidor.");
+                    msg = await response.json();
                 }
                 
-               document.getElementById('view-subject').innerText = msg.subject;
+                document.getElementById('view-subject').innerText = msg.subject;
                 const iframe = document.getElementById('view-iframe');
                 
-                // Injeção mais agressiva para o Guerrilla obedecer no mobile
                 const injectMeta = `<meta name="viewport" content="width=device-width, initial-scale=1.0"><style>*, img, table, div { max-width: 100% !important; height: auto !important; box-sizing: border-box !important; word-wrap: break-word !important; }</style>`;
                 
                 const htmlContent = msg.html ? injectMeta + msg.html[0] : (msg.text ? `<pre style="font-family:inherit; white-space:pre-wrap; padding:20px; font-size:1rem;">${msg.text}</pre>` : "<i>No content</i>");
@@ -1236,7 +1015,10 @@
                 
                 travarScroll(); document.getElementById('email-view-modal').style.display = 'flex';
 
-            } catch (e) { console.error("View Error", e); showToast("Erro ao abrir email", "error"); }
+            } catch (e) { 
+                console.error("View Error", e); 
+                showToast("Erro ao abrir email", "error"); 
+            }
         }
 
         window.onload = () => {
